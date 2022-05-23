@@ -1,0 +1,622 @@
+classdef CourseProject < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                      matlab.ui.Figure
+        TabGroup                      matlab.ui.container.TabGroup
+        FILEINPUTTab                  matlab.ui.container.Tab
+        AnswerLabel                   matlab.ui.control.Label
+        hVal                          matlab.ui.control.EditField
+        XValuetoDifferentiateEditField_2Label_3  matlab.ui.control.Label
+        SolveButton                   matlab.ui.control.Button
+        XVal                          matlab.ui.control.EditField
+        XValuetoDifferentiateEditFieldLabel  matlab.ui.control.Label
+        FLAG                          matlab.ui.container.ButtonGroup
+        ptCenteredDifferenceButton    matlab.ui.control.RadioButton
+        ptForwardDifferenceButton     matlab.ui.control.RadioButton
+        ForwardDifferenceButton       matlab.ui.control.RadioButton
+        FilePath                      matlab.ui.control.EditField
+        EnterFilePathEditFieldLabel   matlab.ui.control.Label
+        USERINPUTTab                  matlab.ui.container.Tab
+        hVal_2                        matlab.ui.control.EditField
+        XValuetoDifferentiateEditField_2Label_2  matlab.ui.control.Label
+        AnswerLabel_2                 matlab.ui.control.Label
+        warninglabel                  matlab.ui.control.Label
+        XVal_2                        matlab.ui.control.EditField
+        XValuetoDifferentiateEditField_2Label  matlab.ui.control.Label
+        SolveButton_2                 matlab.ui.control.Button
+        FLAG_2                        matlab.ui.container.ButtonGroup
+        ptCenteredDifferenceButton_2  matlab.ui.control.RadioButton
+        ptForwardDifferenceButton_2   matlab.ui.control.RadioButton
+        ForwardDifferenceButton_2     matlab.ui.control.RadioButton
+        finput                        matlab.ui.control.EditField
+        xinput                        matlab.ui.control.EditField
+        Label2                        matlab.ui.control.Label
+        Label_2                       matlab.ui.control.Label
+    end
+
+    
+    methods (Access = private)
+        
+        %method for returning a 0 or 1 depending on existence of val in
+        %vec.
+        function results = exists(app,vec, val)
+            s = size(vec,2);
+            results = 0;
+            for i=1:s
+                if(vec(i)==val)
+                    results = 1;
+                end
+            end
+        end
+
+        %method for inserting a value into its place in order.
+        function results = InsertToX(app, x, x0)
+            
+            size = length(x);
+            pos = 0;
+            for i = 1:size
+                if(x(i)<x0)
+                    pos = i;
+                end
+            end
+            results = double.empty(0,size+1);
+            for j = 1:(size+1)
+                if(j<=pos)
+                    results(j)=x(j);
+                elseif(j==(pos+1))
+                    results(j) = x0;
+                elseif(j>(pos+1))
+                    results(j) = x(j-1);
+                end
+            end
+            
+        end
+        
+        %Lagrange function
+        function results = Lagrange(app, x0, x, f)
+
+            n = length(x);
+            sum = 0;
+            for i = 1:n
+                pr = 1;
+                for j = 1:n
+                    if j~=i
+                        pr = pr*((x0-x(j))/(x(i)-x(j)));
+                    end
+                end
+                sum = sum+f(i)*pr;
+            end
+            results = sum;
+        
+            
+        end
+        
+        %method for inserting a value into the f array
+        function results = InsertToF(app,f,pos,value)
+            size = length(f);
+            results = double.empty(0,size+1);
+            for i=1:(size+1)
+                if(i<pos)
+                    results(i)=f(i);
+                elseif(i==pos)
+                    results(i)=value;
+                elseif(i>pos)
+                    results(i) = f(i-1);
+                end
+            end
+
+        end
+        
+        %method for getting the f(x) value that corresponds to x=val
+        function results = Get_Y(app,x,f,val)
+
+            fx=0;
+            temp =find(x==val);
+            temp = temp(1);
+            if temp
+                fx = f(temp);
+            end
+            results = fx;
+
+        end
+    
+        
+        function [x, f] = FileReader(app,filename)
+            file = load(filename);
+            x=file(:,1);
+            f=file(:,2);
+            x= rot90(x);
+            f=rot90(f);
+        end
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Button pushed function: SolveButton_2
+        function SolveButton_2Pushed(app, event)
+            %SETTING ALL THE VARIABLES I WILL BE USING
+            x = str2double(strsplit(app.xinput.Value));
+            f = str2double(strsplit(app.finput.Value));
+            xval = str2double(app.XVal_2.Value);
+            var = 0;
+            h = str2double(app.hVal_2.Value);
+            
+         
+
+            %CHECKS FOR WHICH BUTTON IS PUSHED (WHICH DIFFERENTIATION TO
+            %USE)
+            if(app.ptCenteredDifferenceButton_2.Value == 0)
+                %centered diff formula
+                %need x0+h,x0-h 
+
+                %CHECKING IF x0+h and x0-h ARE DEFINED, IF NOT, THEN
+                %DEFINE THEM IN X AND F VECTORS.
+                a = xval+h;
+                b = xval-h;
+                aexist = exists(app,x,a);
+                bexist = exists(app,x,b);
+
+                if(aexist==0)
+                    %if a isnt defined, define it in x and define f(a) in
+                    %f.
+                    fa = Lagrange(app,a,x,f);
+                    x = InsertToX(app,x,a);
+                    place = find(x==a);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fa);
+                end
+                if(bexist==0)
+                    %do above steps for b only.
+                    fb = Lagrange(app,b,x,f);
+                    x = InsertToX(app,x,b);
+                    place = find(x==b);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fb);
+                end
+
+                %APPLYING CENTERED DIFF FORMULA, A AND B MUST BE DEFINED BY
+                %NOW, SO IT IS STRAIGHTFORWARD APPLYING THE FORMULA
+
+                var1 = Get_Y(app,x,f,a);
+                var2 = Get_Y(app,x,f,b);
+
+                %setting the answer
+                answer = (var1 - var2)/(2*h);
+
+                var=answer;
+
+            elseif(app.ptForwardDifferenceButton_2.Value==0)
+                %3pt forward diff formula
+                %need x, x+h, x+2h
+                a = xval;
+                b = xval+h;
+                c= xval+2*h;
+
+                aexist = exists(app,x,a);
+                bexist = exists(app,x,b);
+                cexist = exists(app,x,c);
+
+                if(aexist==0)
+                    fa = Lagrange(app,a,x,f);
+                    x = InsertToX(app,x,a);
+                    place = find(x==a);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fa);
+                end
+                if(bexist==0)
+                    %do above steps for b only.
+                    fb = Lagrange(app,b,x,f);
+                    x = InsertToX(app,x,b);
+                    place = find(x==b);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fb);
+                end
+                if(cexist==0)
+                    fc = Lagrange(app,c,x,f);
+                    x = InsertToX(app,x,c);
+                    place = find(x==c);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fc);
+                end
+
+                var1 = Get_Y(app,x,f,c);
+                var2 = Get_Y(app,x,f,b);
+                var3 = Get_Y(app,x,f,a);
+
+                answer = (-1*var1)+(4*var2)-(3*var3);
+                answer = answer/(2*h);
+                
+                var=answer;
+            else
+                %forward diff formula
+                %need x and x+h
+                a = xval;
+                b = xval+h;
+
+                aexist = exists(app,x,a);
+                bexist = exists(app,x,b);
+
+                if(aexist==0)
+                    %if a isnt defined, define it in x and define f(a) in
+                    %f.
+                    fa = Lagrange(app,a,x,f);
+                    x = InsertToX(app,x,a);
+                    place = find(x==a);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fa);
+                end
+                if(bexist==0)
+                    %do above steps for b only.
+                    fb = Lagrange(app,b,x,f);
+                    x = InsertToX(app,x,b);
+                    place = find(x==b);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fb);
+                end
+
+                var1 = Get_Y(app,x,f,b);
+                var2 = Get_Y(app,x,f,a);
+
+                answer = var1-var2;
+                answer = answer/h;
+                var=answer;
+            end
+            
+            app.AnswerLabel_2.Text = num2str(var);
+            drawnow
+        end
+
+        % Button pushed function: SolveButton
+        function SolveButtonPushed(app, event)
+            %setting all variables to be used
+            [x,f] = FileReader(app,app.FilePath.Value);
+            xval = str2double(app.XVal.Value);
+            var = 0;
+            h = str2double(app.hVal.Value);
+
+            %SAME CODE AS ABOVE
+
+            %CHECKS FOR WHICH BUTTON IS PUSHED (WHICH DIFFERENTIATION TO
+            %USE)
+            if(app.ptCenteredDifferenceButton.Value == 0)
+                %centered diff formula
+                %need x0+h,x0-h 
+
+                %CHECKING IF x0+h and x0-h ARE DEFINED, IF NOT, THEN
+                %DEFINE THEM IN X AND F VECTORS.
+                a = xval+h;
+                b = xval-h;
+                aexist = exists(app,x,a);
+                bexist = exists(app,x,b);
+
+                if(aexist==0)
+                    %if a isnt defined, define it in x and define f(a) in
+                    %f.
+                    fa = Lagrange(app,a,x,f);
+                    x = InsertToX(app,x,a);
+                    place = find(x==a);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fa);
+                end
+                if(bexist==0)
+                    %do above steps for b only.
+                    fb = Lagrange(app,b,x,f);
+                    x = InsertToX(app,x,b);
+                    place = find(x==b);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fb);
+                end
+
+                %APPLYING CENTERED DIFF FORMULA, A AND B MUST BE DEFINED BY
+                %NOW, SO IT IS STRAIGHTFORWARD APPLYING THE FORMULA
+
+                var1 = Get_Y(app,x,f,a);
+                var2 = Get_Y(app,x,f,b);
+
+                %setting the answer
+                answer = (var1 - var2)/(2*h);
+
+                var=answer;
+
+            elseif(app.ptForwardDifferenceButton.Value==0)
+                %3pt forward diff formula
+                %need x, x+h, x+2h
+                a = xval;
+                b = xval+h;
+                c= xval+2*h;
+
+                aexist = exists(app,x,a);
+                bexist = exists(app,x,b);
+                cexist = exists(app,x,c);
+
+                if(aexist==0)
+                    fa = Lagrange(app,a,x,f);
+                    x = InsertToX(app,x,a);
+                    place = find(x==a);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fa);
+                end
+                if(bexist==0)
+                    %do above steps for b only.
+                    fb = Lagrange(app,b,x,f);
+                    x = InsertToX(app,x,b);
+                    place = find(x==b);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fb);
+                end
+                if(cexist==0)
+                    fc = Lagrange(app,c,x,f);
+                    x = InsertToX(app,x,c);
+                    place = find(x==c);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fc);
+                end
+
+                var1 = Get_Y(app,x,f,c);
+                var2 = Get_Y(app,x,f,b);
+                var3 = Get_Y(app,x,f,a);
+
+                answer = (-1*var1)+(4*var2)-(3*var3);
+                answer = answer/(2*h);
+                
+                var=answer;
+            else
+                %forward diff formula
+                %need x and x+h
+                a = xval;
+                b = xval+h;
+
+                aexist = exists(app,x,a);
+                bexist = exists(app,x,b);
+
+                if(aexist==0)
+                    %if a isnt defined, define it in x and define f(a) in
+                    %f.
+                    fa = Lagrange(app,a,x,f);
+                    x = InsertToX(app,x,a);
+                    place = find(x==a);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fa);
+                end
+                if(bexist==0)
+                    %do above steps for b only.
+                    fb = Lagrange(app,b,x,f);
+                    x = InsertToX(app,x,b);
+                    place = find(x==b);
+                    place = place(1);
+                    
+                    f = InsertToF(app,f,place,fb);
+                end
+
+                var1 = Get_Y(app,x,f,b);
+                var2 = Get_Y(app,x,f,a);
+
+                answer = var1-var2;
+                answer = answer/h;
+                var=answer;
+            end
+            
+            app.AnswerLabel.Text = num2str(var);
+            drawnow
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create TabGroup
+            app.TabGroup = uitabgroup(app.UIFigure);
+            app.TabGroup.Position = [1 0 640 481];
+
+            % Create FILEINPUTTab
+            app.FILEINPUTTab = uitab(app.TabGroup);
+            app.FILEINPUTTab.Title = 'FILE INPUT';
+
+            % Create EnterFilePathEditFieldLabel
+            app.EnterFilePathEditFieldLabel = uilabel(app.FILEINPUTTab);
+            app.EnterFilePathEditFieldLabel.HorizontalAlignment = 'right';
+            app.EnterFilePathEditFieldLabel.Position = [38 344 88 22];
+            app.EnterFilePathEditFieldLabel.Text = 'Enter File Path:';
+
+            % Create FilePath
+            app.FilePath = uieditfield(app.FILEINPUTTab, 'text');
+            app.FilePath.Position = [141 344 463 22];
+            app.FilePath.Value = '"C:\Users\flori\Downloads\File.txt"';
+
+            % Create FLAG
+            app.FLAG = uibuttongroup(app.FILEINPUTTab);
+            app.FLAG.Title = 'Method of Differentiation';
+            app.FLAG.Position = [38 149 168 106];
+
+            % Create ForwardDifferenceButton
+            app.ForwardDifferenceButton = uiradiobutton(app.FLAG);
+            app.ForwardDifferenceButton.Text = 'Forward Difference';
+            app.ForwardDifferenceButton.Position = [11 60 124 22];
+            app.ForwardDifferenceButton.Value = true;
+
+            % Create ptForwardDifferenceButton
+            app.ptForwardDifferenceButton = uiradiobutton(app.FLAG);
+            app.ptForwardDifferenceButton.Text = '3pt Forward Difference';
+            app.ptForwardDifferenceButton.Position = [11 38 144 22];
+
+            % Create ptCenteredDifferenceButton
+            app.ptCenteredDifferenceButton = uiradiobutton(app.FLAG);
+            app.ptCenteredDifferenceButton.Text = '3pt Centered Difference';
+            app.ptCenteredDifferenceButton.Position = [11 16 149 22];
+
+            % Create XValuetoDifferentiateEditFieldLabel
+            app.XValuetoDifferentiateEditFieldLabel = uilabel(app.FILEINPUTTab);
+            app.XValuetoDifferentiateEditFieldLabel.HorizontalAlignment = 'right';
+            app.XValuetoDifferentiateEditFieldLabel.Position = [38 286 131 22];
+            app.XValuetoDifferentiateEditFieldLabel.Text = 'X Value to Differentiate:';
+
+            % Create XVal
+            app.XVal = uieditfield(app.FILEINPUTTab, 'text');
+            app.XVal.Position = [184 286 194 22];
+            app.XVal.Value = '0.26';
+
+            % Create SolveButton
+            app.SolveButton = uibutton(app.FILEINPUTTab, 'push');
+            app.SolveButton.ButtonPushedFcn = createCallbackFcn(app, @SolveButtonPushed, true);
+            app.SolveButton.Position = [38 87 100 22];
+            app.SolveButton.Text = 'Solve';
+
+            % Create XValuetoDifferentiateEditField_2Label_3
+            app.XValuetoDifferentiateEditField_2Label_3 = uilabel(app.FILEINPUTTab);
+            app.XValuetoDifferentiateEditField_2Label_3.HorizontalAlignment = 'right';
+            app.XValuetoDifferentiateEditField_2Label_3.Position = [388 286 25 22];
+            app.XValuetoDifferentiateEditField_2Label_3.Text = 'h:';
+
+            % Create hVal
+            app.hVal = uieditfield(app.FILEINPUTTab, 'text');
+            app.hVal.Position = [428 286 176 22];
+            app.hVal.Value = '0.01';
+
+            % Create AnswerLabel
+            app.AnswerLabel = uilabel(app.FILEINPUTTab);
+            app.AnswerLabel.HorizontalAlignment = 'center';
+            app.AnswerLabel.FontSize = 20;
+            app.AnswerLabel.FontWeight = 'bold';
+            app.AnswerLabel.Position = [151 84 267 25];
+            app.AnswerLabel.Text = 'answer goes here';
+
+            % Create USERINPUTTab
+            app.USERINPUTTab = uitab(app.TabGroup);
+            app.USERINPUTTab.Title = 'USER INPUT';
+
+            % Create Label_2
+            app.Label_2 = uilabel(app.USERINPUTTab);
+            app.Label_2.Position = [38 405 25 22];
+            app.Label_2.Text = 'x:';
+
+            % Create Label2
+            app.Label2 = uilabel(app.USERINPUTTab);
+            app.Label2.Position = [38 354 26 22];
+            app.Label2.Text = 'f(x):';
+
+            % Create xinput
+            app.xinput = uieditfield(app.USERINPUTTab, 'text');
+            app.xinput.Position = [62 405 542 22];
+            app.xinput.Value = '0.15 0.21 0.23 0.27 0.32 0.35';
+
+            % Create finput
+            app.finput = uieditfield(app.USERINPUTTab, 'text');
+            app.finput.Position = [66 354 538 22];
+            app.finput.Value = '0.1761 0.3222 0.3617 0.4314 0.5051 0.5441';
+
+            % Create FLAG_2
+            app.FLAG_2 = uibuttongroup(app.USERINPUTTab);
+            app.FLAG_2.Title = 'Method of Differentiation';
+            app.FLAG_2.Position = [38 150 168 106];
+
+            % Create ForwardDifferenceButton_2
+            app.ForwardDifferenceButton_2 = uiradiobutton(app.FLAG_2);
+            app.ForwardDifferenceButton_2.Text = 'Forward Difference';
+            app.ForwardDifferenceButton_2.Position = [11 60 124 22];
+            app.ForwardDifferenceButton_2.Value = true;
+
+            % Create ptForwardDifferenceButton_2
+            app.ptForwardDifferenceButton_2 = uiradiobutton(app.FLAG_2);
+            app.ptForwardDifferenceButton_2.Text = '3pt Forward Difference';
+            app.ptForwardDifferenceButton_2.Position = [11 38 144 22];
+
+            % Create ptCenteredDifferenceButton_2
+            app.ptCenteredDifferenceButton_2 = uiradiobutton(app.FLAG_2);
+            app.ptCenteredDifferenceButton_2.Text = '3pt Centered Difference';
+            app.ptCenteredDifferenceButton_2.Position = [11 16 149 22];
+
+            % Create SolveButton_2
+            app.SolveButton_2 = uibutton(app.USERINPUTTab, 'push');
+            app.SolveButton_2.ButtonPushedFcn = createCallbackFcn(app, @SolveButton_2Pushed, true);
+            app.SolveButton_2.Position = [38 87 100 22];
+            app.SolveButton_2.Text = 'Solve';
+
+            % Create XValuetoDifferentiateEditField_2Label
+            app.XValuetoDifferentiateEditField_2Label = uilabel(app.USERINPUTTab);
+            app.XValuetoDifferentiateEditField_2Label.HorizontalAlignment = 'right';
+            app.XValuetoDifferentiateEditField_2Label.Position = [38 286 131 22];
+            app.XValuetoDifferentiateEditField_2Label.Text = 'X Value to Differentiate:';
+
+            % Create XVal_2
+            app.XVal_2 = uieditfield(app.USERINPUTTab, 'text');
+            app.XVal_2.Position = [184 286 194 22];
+            app.XVal_2.Value = '0.26';
+
+            % Create warninglabel
+            app.warninglabel = uilabel(app.USERINPUTTab);
+            app.warninglabel.Position = [38 322 304 22];
+            app.warninglabel.Text = '^ separated by spaces, make sure x corresponds to f(x)';
+
+            % Create AnswerLabel_2
+            app.AnswerLabel_2 = uilabel(app.USERINPUTTab);
+            app.AnswerLabel_2.HorizontalAlignment = 'center';
+            app.AnswerLabel_2.FontSize = 20;
+            app.AnswerLabel_2.FontWeight = 'bold';
+            app.AnswerLabel_2.Position = [151 84 267 25];
+            app.AnswerLabel_2.Text = 'answer goes here';
+
+            % Create XValuetoDifferentiateEditField_2Label_2
+            app.XValuetoDifferentiateEditField_2Label_2 = uilabel(app.USERINPUTTab);
+            app.XValuetoDifferentiateEditField_2Label_2.HorizontalAlignment = 'right';
+            app.XValuetoDifferentiateEditField_2Label_2.Position = [388 286 25 22];
+            app.XValuetoDifferentiateEditField_2Label_2.Text = 'h:';
+
+            % Create hVal_2
+            app.hVal_2 = uieditfield(app.USERINPUTTab, 'text');
+            app.hVal_2.Position = [428 286 176 22];
+            app.hVal_2.Value = '0.01';
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = CourseProject
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
